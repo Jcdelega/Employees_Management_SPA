@@ -1,7 +1,10 @@
 import { useForm } from 'react-hook-form'
-import { useReducer, useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import * as yup from 'yup'
 import { yupResolver } from '@hookform/resolvers/yup'
+import axios from 'axios'
+import EmployeeTable from './Table'
+const API_URL_EMPLOYEE = 'http://localhost:8080/api/v1/employee'
 
 const scheme = yup.object({
     name: yup.string()
@@ -9,12 +12,12 @@ const scheme = yup.object({
         .min(2, 'Minimun 2 characters')
         .max(50, 'Maximum 50 characters'),
 
-    paternalName: yup.string()
+    fatherLastName: yup.string()
         .required('Paternal surname is required')
         .min(2, 'Minimun 2 characters')
         .max(50, 'Maximum 50 characters'),
 
-    maternalName: yup.string()
+    motherLastName: yup.string()
         .required('Maternal surname is required')
         .min(2, 'Minimun 2 characters')
         .max(50, 'Maximum 50 characters'),
@@ -35,7 +38,7 @@ const scheme = yup.object({
         .max(new Date(), 'You can not insert a date after today')
         .min(new Date(1935, 12, 31), 'The date should not be oldest than december 31st, 1935'),
 
-    country: yup.string()
+    countr: yup.string()
         .required('Country is required')
         .min(2, 'Minimun 2 characters')
         .max(150, 'Maximum 150 characters'),
@@ -47,20 +50,46 @@ const scheme = yup.object({
 
     curp: yup.string()
         .required('CURP is required')
-        .matches(/^[A-Z]{4}[0-9]{6}[HM]{1}[A-Z]{2}[B-DF-HJ-NP-TV-Z]{3}[0-9A-Z]{1}[0-9]{1}$/, 'Unvalid CURP'),
+        .matches( /^[A-Z\d]{18}$/  /* /^[A-Z]{4}[0-9]{6}[HM]{1}[A-Z]{2}[B-DF-HJ-NP-TV-Z]{3}[0-9A-Z]{1}[0-9]{1}$/ */, 'Unvalid CURP'),
 
     rfc: yup.string()
         .required('RFC is required')
-        .matches(/^[A-Z&Ñ]{4}[0-9]{2}(0[1-9]|1[0-2])(0[1-9]|1[0-9]|2[0-9]|3[01])[A-Z0-9]{3}$/, 'Unvalid RFC')
+        .matches( /^[A-Z\d]{13}$/ /* /^[A-Z&Ñ]{4}[0-9]{2}(0[1-9]|1[0-2])(0[1-9]|1[0-9]|2[0-9]|3[01])[A-Z0-9]{3}$/ */, 'Unvalid RFC')
 })
 
 export const EmployeeForm = () => {
     const { register, handleSubmit, formState: { errors } } = useForm({
         resolver: yupResolver(scheme),
     });
-    const onSubmit = (data) => {
-        console.log(data);
-    };
+    const [employees, setEmployees] = useState([])
+    const [loader, setLoader] = useState(false)
+
+    const onSubmit = async (data) => {
+        try {
+            setLoader(true)
+            await axios.post(API_URL_EMPLOYEE, JSON.stringify(data), {
+                headers: {
+                    'Content-Type': 'application/json',
+                },})
+            setEmployees([...employees, data])
+            console.log(employees)
+        } catch (error) {
+            console.error('Something went error: ', error)
+        } finally {
+            setLoader(false)
+        }
+    }
+    
+    const getAllEmployees = async() =>{
+        try{
+            const res = await axios.get(API_URL_EMPLOYEE,)
+            setEmployees(res.data)
+            console.log(employees)
+        } catch(error){
+            console.error('error: ', error)
+        }
+    }
+
     return (
         <>
             <div className="max-w-3xl mx-auto bg-white p-6 shadow-lg rounded-lg">
@@ -71,12 +100,12 @@ export const EmployeeForm = () => {
 
                     {[
                         { label: 'Name', name: 'name' },
-                        { label: 'Paternal Name', name: 'paternalName' },
-                        { label: 'Maternal Name', name: 'maternalName' },
+                        { label: 'Paternal Name', name: 'fatherLastName' },
+                        { label: 'Maternal Name', name: 'motherLastName' },
                         { label: 'Company', name: 'company' },
                         { label: 'Gender', name: 'gender' },
-                        { label: 'Birthdate', name: 'birthdate', type: 'date' },
-                        { label: 'Country', name: 'country' },
+                        { label: 'Birthdate', name: 'birthdate', type:'date'},
+                        { label: 'Country', name: 'countr' },
                         { label: 'State', name: 'state' },
                         { label: 'CURP', name: 'curp' },
                         { label: 'RFC', name: 'rfc' },
@@ -102,6 +131,15 @@ export const EmployeeForm = () => {
                         </button>
                     </div>
                 </form>
+                <div>
+                    <h2 className='m-3 text-center'>Employees log</h2>
+                    <div className='flex justify-center m-5'>
+                        <button className='text-white' onClick={getAllEmployees}>
+                            Update Employees Log
+                        </button>
+                    </div>
+                        <EmployeeTable employees={employees} setEmployees={setEmployees}/>
+                </div>
             </div>
         </>
     )
